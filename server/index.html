@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Steganography Tool</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+background: radial-gradient(
+  circle at top,
+  #6b7cff 0%,
+  #5a4fcf 40%,
+  #2b235a 100%
+);
+min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;font-size: 12px;}
+.container{max-width:800px;width:100%;}
+h1{text-align:center;color:white;margin-bottom:80px;font-size:3.2em;}
+.cards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;}
+.card{flex:1;min-width:250px;padding:40px 20px;background:rgba(255,255,255,0.1);backdrop-filter:blur(20px);border-radius:20px;border:1px solid rgba(255,255,255,0.2);cursor:pointer;transition:all 0.3s ease;text-align:center;color:white;font-size: 2.4em;}
+.card:hover{transform:translateY(-10px);background:rgba(255,255,255,0.2);}
+.hidden{display:none;}
+form{background:rgba(255,255,255,0.1);backdrop-filter:blur(20px);padding:40px;border-radius:20px;border:1px solid rgba(255,255,255,0.25);box-shadow: 0 20px 40px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.2);overflow: hidden;}
+label{display:block;margin:20px 0 10px;color:white;font-weight:bold;}
+input,textarea,button{width:100%;padding:15px;border:none;border-radius:10px;font-size:16px;margin-bottom:20px;}
+/*input,textarea{background:rgba(255,255,255,0.2);color:white;}*/
+textarea{
+  resize: none;           /* disable manual resizing */
+  min-height: 120px;      /* default height */
+  max-height: 300px;      /* prevent it from becoming huge */
+  overflow-y: auto;       /* scroll instead of breaking layout */
+}
+
+button{background:linear-gradient(135deg, #00c6ff, #0072ff);color:white; font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.25s ease;}
+.alert{padding:15px;border-radius:10px;margin:20px 0;text-align:center;}
+.success{background:rgba(0,255,0,0.3);}
+.error{background:rgba(255,0,0,0.3);}
+.progress-container{background:rgba(255,255,255,0.2);border-radius:10px;overflow:hidden;margin-bottom:20px;display:none;}
+.progress-bar{height:20px;width:0%;background:linear-gradient(135deg,#667eea,#764ba2);}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h1>🔒 Image Steganography</h1>
+
+<div id="choicePage" class="cards">
+  <div class="card" onclick="showEncode()">📤 Encode</div>
+  <div class="card" onclick="showDecode()">📥 Decode</div>
+</div>
+
+<div id="encodePage" class="hidden">
+<form id="encodeForm">
+<label>Cover Image (BMP / PNG / JPG)</label>
+<input type="file" id="bmpFile" accept="image/*" required>
+
+<label>Secret Text</label>
+<textarea id="secretText"></textarea>
+
+<label>OR Secret File</label>
+<input type="file" id="secretFile">
+
+<div class="progress-container">
+  <div id="encodeProgress" class="progress-bar"></div>
+</div>
+
+<button type="button" id="generateKeyBtn">Generate Key1</button>
+<button type="submit" id="encodeBtn" disabled>Encode</button>
+<button type="button" onclick="showChoice()">Back</button>
+</form>
+<div id="encodeAlert"></div>
+</div>
+
+<div id="decodePage" class="hidden">
+<form id="decodeForm">
+<label>Encoded BMP Image</label>
+<input type="file" id="encodedBmp" accept="image/bmp" required>
+
+<label>Key1 File (.txt)</label>
+<input type="file" id="decodeKey1" accept=".txt" required>
+
+<div class="progress-container">
+  <div id="decodeProgress" class="progress-bar"></div>
+</div>
+
+<button type="submit">Decode</button>
+<button type="button" onclick="showChoice()">Back</button>
+</form>
+<div id="decodeAlert"></div>
+</div>
+</div>
+
+<script>
+function showChoice(){
+  document.querySelectorAll('[id$="Page"]').forEach(p=>p.classList.add('hidden'));
+  document.getElementById('choicePage').classList.remove('hidden');
+}
+function showEncode(){
+  document.getElementById('choicePage').classList.add('hidden');
+  document.getElementById('decodePage').classList.add('hidden');
+  document.getElementById('encodePage').classList.remove('hidden');
+}
+function showDecode(){
+  document.getElementById('choicePage').classList.add('hidden');
+  document.getElementById('encodePage').classList.add('hidden');
+  document.getElementById('decodePage').classList.remove('hidden');
+}
+
+let key1="";
+document.getElementById('generateKeyBtn').onclick=()=>{
+  key1=[...crypto.getRandomValues(new Uint8Array(128))]
+    .map(b=>"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[b%62]).join("");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([key1]));
+  a.download="key1.txt";
+  a.click();
+  document.getElementById('encodeBtn').disabled=false;
+};
+
+function simulateProgress(barId, cb){
+  const bar=document.getElementById(barId);
+  bar.style.width='0%';
+  bar.parentElement.style.display='block';
+  let w=0;
+  const i=setInterval(()=>{
+    w+=10; bar.style.width=w+'%';
+    if(w>=100){clearInterval(i);bar.parentElement.style.display='none';cb();}
+  },80);
+}
+
+function showAlert(id,msg,type){
+  const el=document.getElementById(id);
+  el.textContent=msg;
+  el.className='alert '+type;
+}
+
+document.getElementById('encodeForm').onsubmit=async e=>{
+  e.preventDefault();
+  const pwd=prompt("Enter password (Key2)");
+  if(!pwd) return;
+
+  simulateProgress('encodeProgress', async ()=>{
+    const fd=new FormData();
+    fd.append("image",document.getElementById("bmpFile").files[0]);
+    fd.append("key1",key1);
+    fd.append("password",pwd);
+    fd.append("txtFile",document.getElementById("secretFile").files[0]||new Blob([document.getElementById("secretText").value]));
+
+    try {
+      const r=await fetch("/encode",{method:"POST",body:fd});
+      if (!r.ok) throw new Error(await r.text());
+      const b=await r.blob();
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(b);
+      a.download="encoded.bmp";
+      a.click();
+      showAlert('encodeAlert','Encoding successful','success');
+    } catch (err) {
+      showAlert('encodeAlert',err.message,'error');
+    }
+  });
+};
+
+document.getElementById('decodeForm').onsubmit=async e=>{
+  e.preventDefault();
+  const pwd=prompt("Enter password (Key2)");
+  if(!pwd) return;
+
+  simulateProgress('decodeProgress', async ()=>{
+    const fd=new FormData();
+    fd.append("bmp",document.getElementById("encodedBmp").files[0]);
+    fd.append("key1",await document.getElementById("decodeKey1").files[0].text());
+    fd.append("password",pwd);
+
+    try {
+      const r=await fetch("/decode",{method:"POST",body:fd});
+      if (!r.ok) throw new Error(await r.text());
+      const b=await r.blob();
+      
+      // Extract filename from Content-Disposition header
+      const disposition = r.headers.get('Content-Disposition');
+      let filename = 'decoded_output';  // Fallback
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename="([^"]+)"/);
+        if (match) filename = match[1];
+      }
+      
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(b);
+      a.download=filename;  // Use the dynamic filename
+      a.click();
+      showAlert('decodeAlert','Decoding successful','success');
+    } catch (err) {
+      showAlert('decodeAlert',err.message,'error');
+    }
+  });
+};
+const textarea = document.getElementById("secretText");
+
+textarea.addEventListener("input", () => {
+  textarea.style.height = "auto";
+  textarea.style.height = textarea.scrollHeight + "px";
+});
+</script>
+</body>
+</html>
