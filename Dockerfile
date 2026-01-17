@@ -1,17 +1,18 @@
-# Use a lightweight Linux base image
-FROM alpine:latest
+# Use Debian-based GCC image (NOT Alpine)
+FROM gcc:13
 
-# Install dependencies: GCC, make, ImageMagick, OpenSSL, etc.
-RUN apk add --no-cache gcc musl-dev make imagemagick openssl-dev
+# Install ImageMagick with full delegates (PNG/JPEG)
+RUN apt-get update && apt-get install -y imagemagick libjpeg-dev libpng-dev && rm -rf /var/lib/apt/lists/*
 
-# Copy your source files
-COPY . /app
 WORKDIR /app
 
-# Compile the server (adjust if your build command differs)
+# Copy source files
+COPY . .
+
+# Compile the server
 RUN gcc -std=gnu99 -DCBC=1 src/*.c -Iinclude -lssl -lcrypto -lm -o stego_server
 
-# Expose port 8080
+# Expose port (Render will map dynamically)
 EXPOSE 8080
 
 # Run the server
