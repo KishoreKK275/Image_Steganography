@@ -1,3 +1,4 @@
+
 #include "../include/http.h"
 #include "../include/stego.h"
 #include "../include/crypto.h"
@@ -82,14 +83,11 @@ void handle_encode(struct mg_connection *c, struct mg_http_message *hm) {
         fwrite(img, 1, img_len, ft);
         fclose(ft);
         
-        // Attempt conversion with ImageMagick 7.x syntax first
+        // Use magick convert (no fallback to avoid deprecation warnings)
         if (system("magick convert temp_input temp.bmp") != 0) {
-            // Fallback to older ImageMagick syntax if magick fails
-            if (system("convert temp_input temp.bmp") != 0) {
-                LOG("Image conversion failed");
-                mg_http_reply(c, 500, "", "Image conversion failed\n");
-                goto cleanup;
-            }
+            LOG("Image conversion failed");
+            mg_http_reply(c, 500, "", "Image conversion failed\n");
+            goto cleanup;
         }
         strcpy(input_file, "temp.bmp");
     } else {
@@ -214,13 +212,9 @@ void handle_encode_decode(struct mg_connection *c, struct mg_http_message *hm) {
         }
         fwrite(img, 1, img_len, ft);
         fclose(ft);
-        // Attempt conversion with ImageMagick 7.x syntax first
         if (system("magick convert temp_input temp.bmp") != 0) {
-            // Fallback to older ImageMagick syntax if magick fails
-            if (system("convert temp_input temp.bmp") != 0) {
-                mg_http_reply(c, 500, "", "Image conversion failed\n");
-                goto cleanup;
-            }
+            mg_http_reply(c, 500, "", "Image conversion failed\n");
+            goto cleanup;
         }
         strcpy(input_file, "temp.bmp");
     } else {

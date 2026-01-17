@@ -78,6 +78,11 @@ extern "C" {
 #define MG_BIG_ENDIAN (*(uint16_t *) "\0\xff" < 0x100)
 
 
+#ifdef _WIN32
+  #include <malloc.h>   // alloca() on Windows
+#else
+  #include <alloca.h>   // alloca() on Unix/Linux
+#endif
 
 
 
@@ -184,7 +189,7 @@ extern "C" {
 #if defined(__ARMCC_VERSION)
 #define mode_t size_t
 #include <time.h>
-#include <alloca.h>
+// #include <alloca.h>
 #else
 #include <sys/stat.h>
 #endif

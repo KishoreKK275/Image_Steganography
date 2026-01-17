@@ -1,19 +1,17 @@
-# Use Debian-based GCC image (NOT Alpine)
+# Debian-based GCC image
 FROM gcc:13
 
-# Install ImageMagick with full delegates (PNG/JPEG)
-RUN apt-get update && apt-get install -y imagemagick libjpeg-dev libpng-dev && rm -rf /var/lib/apt/lists/*
+# Install runtime + build dependencies
+RUN apt-get update && apt-get install -y imagemagick libjpeg-dev libpng-dev libssl-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy source files
+# Copy source
 COPY . .
 
-# Compile the server
-RUN gcc -std=gnu99 -DCBC=1 src/*.c -Iinclude -lssl -lcrypto -lm -o stego_server
+# Build (match WSL build exactly)
+RUN gcc -std=c99 -D_POSIX_C_SOURCE=200809L -DCBC=1 src/*.c -Iinclude -lssl -lcrypto -lm -o stego_server
 
-# Expose port (Render will map dynamically)
 EXPOSE 8080
 
-# Run the server
 CMD ["./stego_server"]
